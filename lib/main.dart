@@ -1,122 +1,409 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const WorthyPriceApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class WorthyPriceApp extends StatelessWidget {
+  const WorthyPriceApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Worthy Price',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.light,
+        ),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const WorthyPriceCalculator(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class WorthyPriceCalculator extends StatefulWidget {
+  const WorthyPriceCalculator({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<WorthyPriceCalculator> createState() => _WorthyPriceCalculatorState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
+  final TextEditingController _wageController = TextEditingController();
+  final TextEditingController _itemPriceController = TextEditingController();
 
-  void _incrementCounter() {
+  bool _isAnnualSalary = true;
+  double? _hourlyWage;
+  double? _itemPrice;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  Future<void> _loadSavedData() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _isAnnualSalary = prefs.getBool('isAnnualSalary') ?? true;
+      final savedWage = prefs.getDouble('wageAmount');
+      if (savedWage != null) {
+        _wageController.text = savedWage.toStringAsFixed(2);
+        _calculateHourlyWage(savedWage);
+      }
     });
+  }
+
+  Future<void> _saveWageData(double wage) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isAnnualSalary', _isAnnualSalary);
+    await prefs.setDouble('wageAmount', wage);
+  }
+
+  void _calculateHourlyWage(double inputWage) {
+    if (_isAnnualSalary) {
+      // Assume 2080 working hours per year (40 hours/week * 52 weeks)
+      _hourlyWage = inputWage / 2080;
+    } else {
+      _hourlyWage = inputWage;
+    }
+    _saveWageData(inputWage);
+  }
+
+  void _onWageChanged(String value) {
+    final wage = double.tryParse(value);
+    if (wage != null && wage > 0) {
+      setState(() {
+        _calculateHourlyWage(wage);
+      });
+    } else {
+      setState(() {
+        _hourlyWage = null;
+      });
+    }
+  }
+
+  void _onItemPriceChanged(String value) {
+    setState(() {
+      _itemPrice = double.tryParse(value);
+    });
+  }
+
+  void _toggleWageType() {
+    setState(() {
+      _isAnnualSalary = !_isAnnualSalary;
+      final currentValue = double.tryParse(_wageController.text);
+      if (currentValue != null) {
+        _calculateHourlyWage(currentValue);
+      }
+    });
+  }
+
+  Map<String, dynamic>? _calculateWorkTime() {
+    if (_hourlyWage == null || _itemPrice == null || _hourlyWage! <= 0) {
+      return null;
+    }
+
+    final hoursNeeded = _itemPrice! / _hourlyWage!;
+    final hours = hoursNeeded.floor();
+    final minutes = ((hoursNeeded - hours) * 60).round();
+
+    return {
+      'hours': hours,
+      'minutes': minutes,
+      'totalHours': hoursNeeded,
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final workTime = _calculateWorkTime();
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Worthy Price'),
+        centerTitle: true,
+        elevation: 0,
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('You have pushed the button this many times:'),
+            // Introduction text
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Calculate how long you need to work to afford an item.',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha:0.7),
+              ),
+              textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 32),
+
+            // Wage input section
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your Income',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Toggle for Annual/Hourly
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(
+                                value: true,
+                                label: Text('Annual Salary'),
+                                icon: Icon(Icons.calendar_today),
+                              ),
+                              ButtonSegment(
+                                value: false,
+                                label: Text('Hourly Wage'),
+                                icon: Icon(Icons.access_time),
+                              ),
+                            ],
+                            selected: {_isAnnualSalary},
+                            onSelectionChanged: (Set<bool> selection) {
+                              _toggleWageType();
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Wage input field
+                    TextField(
+                      controller: _wageController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: _isAnnualSalary ? 'Annual Salary' : 'Hourly Wage',
+                        prefixText: '\$ ',
+                        suffixText: _isAnnualSalary ? '/year' : '/hour',
+                        border: const OutlineInputBorder(),
+                        filled: true,
+                      ),
+                      onChanged: _onWageChanged,
+                    ),
+
+                    // Show calculated hourly wage if annual salary
+                    if (_isAnnualSalary && _hourlyWage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(alpha:0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Hourly: \$${_hourlyWage!.toStringAsFixed(2)}/hour',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Item price input section
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Item Price',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _itemPriceController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                      ],
+                      decoration: const InputDecoration(
+                        labelText: 'Item Price',
+                        prefixText: '\$ ',
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        hintText: 'Enter the price of the item',
+                      ),
+                      onChanged: _onItemPriceChanged,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Results section
+            if (workTime != null) ...[
+              Card(
+                elevation: 4,
+                color: theme.colorScheme.primaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        size: 48,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Time to Work',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _formatWorkTime(workTime),
+                        style: theme.textTheme.headlineLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _getMotivationalMessage(workTime['totalHours']),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ] else if (_hourlyWage != null && _itemPrice == null) ...[
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.shopping_bag_outlined,
+                        size: 48,
+                        color: theme.colorScheme.onSurface.withValues(alpha:0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Enter an item price to see how long you need to work',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(alpha:0.5),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ] else if (_hourlyWage == null) ...[
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.savings_outlined,
+                        size: 48,
+                        color: theme.colorScheme.onSurface.withValues(alpha:0.3),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Enter your income to get started',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(alpha:0.5),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
     );
+  }
+
+  String _formatWorkTime(Map<String, dynamic> workTime) {
+    final hours = workTime['hours'] as int;
+    final minutes = workTime['minutes'] as int;
+
+    if (hours == 0) {
+      return '$minutes minute${minutes != 1 ? 's' : ''}';
+    } else if (minutes == 0) {
+      return '$hours hour${hours != 1 ? 's' : ''}';
+    } else {
+      return '$hours hour${hours != 1 ? 's' : ''} $minutes minute${minutes != 1 ? 's' : ''}';
+    }
+  }
+
+  String _getMotivationalMessage(double totalHours) {
+    if (totalHours < 1) {
+      return 'Less than an hour of work - that\'s quite affordable!';
+    } else if (totalHours < 8) {
+      return 'Less than a day\'s work - seems reasonable!';
+    } else if (totalHours < 40) {
+      return 'About ${(totalHours / 8).toStringAsFixed(1)} work days - is it worth it?';
+    } else if (totalHours < 160) {
+      return 'About ${(totalHours / 40).toStringAsFixed(1)} work weeks - that\'s significant!';
+    } else {
+      return 'About ${(totalHours / 160).toStringAsFixed(1)} work months - think carefully!';
+    }
+  }
+
+  @override
+  void dispose() {
+    _wageController.dispose();
+    _itemPriceController.dispose();
+    super.dispose();
   }
 }
