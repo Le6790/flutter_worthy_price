@@ -36,10 +36,12 @@ class WorthyPriceCalculator extends StatefulWidget {
 class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
   final TextEditingController _wageController = TextEditingController();
   final TextEditingController _itemPriceController = TextEditingController();
+  final TextEditingController _itemNameController = TextEditingController();
 
   bool _isAnnualSalary = true;
   double? _hourlyWage;
   double? _itemPrice;
+  String? _itemName;
 
   @override
   void initState() {
@@ -93,6 +95,11 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
       _itemPrice = double.tryParse(value);
     });
   }
+  void _onItemNameChanged(String value) {
+    setState(() {
+      _itemName = value;
+    });
+  }
 
   void _toggleWageType() {
     setState(() {
@@ -127,7 +134,7 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Worthy Price'),
+        title: const Text('Worthy Price App'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -233,12 +240,69 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
                         ),
                       ),
                     ],
+                    // Show calculated annual salary if hourly wage
+                    if (!_isAnnualSalary && _hourlyWage != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(alpha:0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Annual Salary: \$${(_hourlyWage!*2080).toStringAsFixed(2)}/year',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 24),
-
+            // Item name input section
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Item Name',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _itemNameController,
+                      keyboardType: TextInputType.text,
+                      decoration: const InputDecoration(
+                        labelText: 'Item Name',
+                        border: OutlineInputBorder(),
+                        filled: true,
+                        hintText: 'Enter the name of the item',
+                      ),
+                      onChanged: _onItemNameChanged,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             // Item price input section
             Card(
               elevation: 2,
@@ -274,6 +338,17 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
               ),
             ),
             const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: (_itemName != null &&
+                         _itemName!.isNotEmpty &&
+                         _itemPrice != null &&
+                         _itemPrice! > 0)
+                  ? () {
+                      // TODO: Implement save functionality
+                    }
+                  : null,
+              child: const Text('Save Item'),
+            ),
 
             // Results section
             if (workTime != null) ...[
@@ -291,7 +366,7 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Time to Work',
+                        'Time to Work for ${_itemName ?? "Item"}',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: theme.colorScheme.onPrimaryContainer,
                         ),
@@ -404,6 +479,7 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
   void dispose() {
     _wageController.dispose();
     _itemPriceController.dispose();
+    _itemNameController.dispose();
     super.dispose();
   }
 }
