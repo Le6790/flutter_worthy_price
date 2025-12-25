@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'models/saved_item.dart';
+import 'services/saved_items_service.dart';
+import 'pages/saved_items_page.dart';
 
 void main() {
   runApp(const WorthyPriceApp());
@@ -37,6 +40,7 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
   final TextEditingController _wageController = TextEditingController();
   final TextEditingController _itemPriceController = TextEditingController();
   final TextEditingController _itemNameController = TextEditingController();
+  final SavedItemsService _savedItemsService = SavedItemsService();
 
   bool _isAnnualSalary = true;
   double? _hourlyWage;
@@ -137,6 +141,20 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
         title: const Text('Worthy Price App'),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Saved Items',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SavedItemsPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -342,9 +360,46 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
               onPressed: (_itemName != null &&
                          _itemName!.isNotEmpty &&
                          _itemPrice != null &&
-                         _itemPrice! > 0)
-                  ? () {
-                      // TODO: Implement save functionality
+                         _itemPrice! > 0 &&
+                         _hourlyWage != null &&
+                         _hourlyWage! > 0)
+                  ? () async {
+                      final workTime = _calculateWorkTime();
+                      if (workTime == null) return;
+
+                      final savedItem = SavedItem(
+                        id: DateTime.now().millisecondsSinceEpoch.toString(),
+                        itemName: _itemName!,
+                        itemPrice: _itemPrice!,
+                        hourlyWage: _hourlyWage!,
+                        workTimeHours: workTime['totalHours'] as double,
+                        savedAt: DateTime.now(),
+                      );
+
+                      final success = await _savedItemsService.saveItem(savedItem);
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              success
+                                  ? 'Item saved successfully!'
+                                  : 'Failed to save item. Please try again.',
+                            ),
+                            backgroundColor: success ? Colors.green : Colors.red,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+
+                        if (success) {
+                          setState(() {
+                            _itemNameController.clear();
+                            _itemPriceController.clear();
+                            _itemName = null;
+                            _itemPrice = null;
+                          });
+                        }
+                      }
                     }
                   : null,
               child: const Text('Save Item'),
