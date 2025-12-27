@@ -356,7 +356,50 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
+            // Results section
+            if (workTime != null) ...[
+              Card(
+                elevation: 4,
+                color: theme.colorScheme.primaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.schedule,
+                        size: 48,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Time to Work for ${_itemName ?? "Item"}',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _formatWorkTime(workTime),
+                        style: theme.textTheme.headlineLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        _getMotivationalMessage(workTime['totalHours']),
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ElevatedButton( // Save Item Button
               onPressed: (_itemName != null &&
                          _itemName!.isNotEmpty &&
                          _itemPrice != null &&
@@ -404,50 +447,6 @@ class _WorthyPriceCalculatorState extends State<WorthyPriceCalculator> {
                   : null,
               child: const Text('Save Item'),
             ),
-
-            // Results section
-            if (workTime != null) ...[
-              Card(
-                elevation: 4,
-                color: theme.colorScheme.primaryContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.schedule,
-                        size: 48,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Time to Work for ${_itemName ?? "Item"}',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _formatWorkTime(workTime),
-                        style: theme.textTheme.headlineLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _getMotivationalMessage(workTime['totalHours']),
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ] else if (_hourlyWage != null && _itemPrice == null) ...[
               Card(
                 elevation: 2,
