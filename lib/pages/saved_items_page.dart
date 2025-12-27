@@ -82,71 +82,79 @@ class _SavedItemsPageState extends State<SavedItemsPage> {
   }
 
   Future<void> _editItem(SavedItem item) async {
-    final nameController = TextEditingController(text: item.itemName);
-    final priceController = TextEditingController(text: item.itemPrice.toStringAsFixed(2));
+    String? editedName;
+    double? editedPrice;
 
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Item'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Item Name',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: priceController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+      builder: (dialogContext) {
+        final nameController = TextEditingController(text: item.itemName);
+        final priceController = TextEditingController(text: item.itemPrice.toStringAsFixed(2));
+
+        return AlertDialog(
+          title: const Text('Edit Item'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Item Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) => editedName = value,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                  ],
+                  decoration: const InputDecoration(
+                    labelText: 'Item Price',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) => editedPrice = double.tryParse(value),
+                ),
               ],
-              decoration: const InputDecoration(
-                labelText: 'Item Price',
-                prefixText: '\$ ',
-                border: OutlineInputBorder(),
-              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                editedName = nameController.text.trim();
+                editedPrice = double.tryParse(priceController.text);
+
+                if (editedName != null &&
+                    editedName!.isNotEmpty &&
+                    editedPrice != null &&
+                    editedPrice! > 0) {
+                  Navigator.pop(dialogContext, true);
+                }
+              },
+              child: const Text('Save'),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              final price = double.tryParse(priceController.text);
-
-              if (name.isNotEmpty && price != null && price > 0) {
-                Navigator.pop(context, {
-                  'name': name,
-                  'price': price,
-                });
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+        );
+      },
     );
 
-    nameController.dispose();
-    priceController.dispose();
-
-    if (result != null) {
-      final newPrice = result['price'] as double;
-      final newWorkTimeHours = newPrice / item.hourlyWage;
+    if (result == true &&
+        editedName != null &&
+        editedPrice != null &&
+        mounted) {
+      final newWorkTimeHours = editedPrice! / item.hourlyWage;
 
       final updatedItem = item.copyWith(
-        itemName: result['name'] as String,
-        itemPrice: newPrice,
+        itemName: editedName!,
+        itemPrice: editedPrice!,
         workTimeHours: newWorkTimeHours,
       );
 
